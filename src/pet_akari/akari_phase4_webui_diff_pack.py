@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageSequence
+from PIL import Image, ImageChops, ImageDraw, ImageSequence
 
 from pet_akari import clawd_hq_theme as hq
 
@@ -141,3 +141,50 @@ def pixel_diff_summary(current, webui, preview_size):
         "meanChannelDelta": total_delta / (pixels * 4),
         "previewSize": preview_size,
     }
+
+
+def write_state_diff(path, state, current, webui, preview_size):
+    path = Path(path)
+    ensure_dir(path.parent)
+    label_height = 44
+    width = preview_size * 2
+    height = preview_size + label_height
+    sheet = Image.new("RGBA", (width, height), (245, 247, 250, 255))
+    draw = ImageDraw.Draw(sheet)
+    current_tile = _preview_tile(current, preview_size)
+    webui_tile = _preview_tile(webui, preview_size)
+    sheet.alpha_composite(current_tile, (0, 0))
+    sheet.alpha_composite(webui_tile, (preview_size, 0))
+    draw.text((6, preview_size + 4), f"{state} current", fill=(20, 24, 32, 255))
+    draw.text((preview_size + 6, preview_size + 4), f"{state} webui", fill=(20, 24, 32, 255))
+    sheet.convert("RGB").save(path)
+    return path
+
+
+def write_contact_sheet(path, state_diff_paths, preview_size):
+    path = Path(path)
+    ensure_dir(path.parent)
+    columns = 4
+    label_height = 22
+    tile_width = preview_size * 2
+    tile_height = preview_size + 44
+    rows = (len(REQUIRED_STATES) + columns - 1) // columns
+    sheet = Image.new(
+        "RGBA",
+        (columns * tile_width, rows * (tile_height + label_height)),
+        (245, 247, 250, 255),
+    )
+    draw = ImageDraw.Draw(sheet)
+    for index, state in enumerate(REQUIRED_STATES):
+        with Image.open(state_diff_paths[state]) as image:
+            tile = image.convert("RGBA")
+        if tile.size != (tile_width, tile_height):
+            tile = tile.resize((tile_width, tile_height), hq._resample_filter())
+        column = index % columns
+        row = index // columns
+        left = column * tile_width
+        top = row * (tile_height + label_height)
+        sheet.alpha_composite(tile, (left, top))
+        draw.text((left + 6, top + tile_height + 4), state, fill=(20, 24, 32, 255))
+    sheet.convert("RGB").save(path)
+    return path

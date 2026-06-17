@@ -167,3 +167,39 @@ class Phase4WebuiDiffPackTests(unittest.TestCase):
         self.assertEqual(32, summary["previewSize"])
         self.assertGreater(summary["changedPixels"], 0)
         self.assertGreater(summary["meanChannelDelta"], 0)
+
+    def test_write_state_diff_writes_side_by_side_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = Image.new("RGBA", (24, 32), (0, 0, 0, 0))
+            webui = Image.new("RGBA", (30, 40), (0, 0, 0, 0))
+            current.putpixel((8, 10), (255, 0, 0, 255))
+            webui.putpixel((12, 16), (0, 128, 255, 255))
+
+            output = diff_pack.write_state_diff(
+                root / "state-diffs" / "idle.png", "idle", current, webui, preview_size=64
+            )
+
+            self.assertTrue(output.is_file())
+            with Image.open(output) as image:
+                self.assertEqual((64 * 2, 64 + 44), image.size)
+                self.assertEqual("RGB", image.mode)
+
+    def test_write_contact_sheet_writes_all_state_diffs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_diff_paths = {}
+            for state in diff_pack.REQUIRED_STATES:
+                path = root / "state-diffs" / f"{state}.png"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                Image.new("RGB", (64 * 2, 64 + 44), "white").save(path)
+                state_diff_paths[state] = path
+
+            output = diff_pack.write_contact_sheet(
+                root / "qa" / "diff-contact-sheet-64.png", state_diff_paths, preview_size=64
+            )
+
+            self.assertTrue(output.is_file())
+            with Image.open(output) as image:
+                self.assertEqual((64 * 2 * 4, (64 + 44 + 22) * 2), image.size)
+                self.assertEqual("RGB", image.mode)
