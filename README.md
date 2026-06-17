@@ -33,6 +33,8 @@ pip install -e ".[dev]"
 | `measure_edges.py` | エッジ測定ユーティリティ |
 | `reorder_loop.py` | ループフレーム順序調整 |
 
+Phase 4 の label-hidden human recognition gate は [docs/phase4-human-recognition.md](docs/phase4-human-recognition.md) を参照。
+
 ## テスト
 
 ```bash
