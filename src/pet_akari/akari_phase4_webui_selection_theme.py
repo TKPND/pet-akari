@@ -7,7 +7,7 @@ import json
 import shutil
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageSequence
 
 from pet_akari import akari_phase4_webui_diff_pack as diff_pack
 from pet_akari import clawd_hq_theme as hq
@@ -16,6 +16,7 @@ DEFAULT_OUTPUT_DIR = Path("work/akari-hq-apng/phase4-webui-selection-theme/theme
 DEFAULT_PACKAGE_PATH = Path("work/akari-hq-apng/phase4-webui-selection-theme/akari-hq-apng-webui-selection.zip")
 DEFAULT_MANIFEST_NAME = "webui-selection-theme-manifest.json"
 STATIC_FRAME_DURATION_MS = 100
+STATIC_APNG_PADDING_PX = 12
 ALLOWED_DECISIONS = {"adopt", "hold", "reject"}
 
 
@@ -84,14 +85,32 @@ def _find_transparent_marker_pixel(image):
     raise ValueError("static APNG source needs at least one transparent pixel")
 
 
+def _fit_foreground_preserving_aspect(image, size):
+    frame = image.convert("RGBA")
+    if frame.size == size:
+        return frame
+    bbox = frame.getchannel("A").getbbox()
+    if bbox is None:
+        raise ValueError("static APNG source has no visible pixels")
+    foreground = frame.crop(bbox)
+    fit_size = (
+        max(1, size[0] - STATIC_APNG_PADDING_PX * 2),
+        max(1, size[1] - STATIC_APNG_PADDING_PX * 2),
+    )
+    foreground.thumbnail(fit_size, hq._resample_filter())
+    canvas = Image.new("RGBA", size, (0, 0, 0, 0))
+    left = (size[0] - foreground.width) // 2
+    top = (size[1] - foreground.height) // 2
+    canvas.alpha_composite(foreground, (left, top))
+    return canvas
+
+
 def write_static_apng(source_path, output_path):
     source_path = Path(source_path)
     output_path = Path(output_path)
     ensure_dir(output_path.parent)
     with Image.open(source_path) as image:
-        first = image.convert("RGBA")
-    if first.size != hq.RUNTIME_SIZE:
-        first = first.resize(hq.RUNTIME_SIZE, hq._resample_filter())
+        first = _fit_foreground_preserving_aspect(image, hq.RUNTIME_SIZE)
     marker = _find_transparent_marker_pixel(first)
     second = first.copy()
     second.putpixel(marker, (1, 1, 1, 0))
@@ -104,6 +123,39 @@ def write_static_apng(source_path, output_path):
         loop=0,
     )
     return output_path
+
+
+def _first_frame(path):
+    with Image.open(path) as image:
+        frames = [frame.copy().convert("RGBA") for frame in ImageSequence.Iterator(image)]
+        if image.info.get("default_image") and len(frames) > 1:
+            frames = frames[1:]
+    if not frames:
+        raise ValueError(f"{path} has no display frames")
+    return frames[0]
+
+
+def write_selection_diffs(theme_dir, output_dir, preview_size=160):
+    theme_dir = Path(theme_dir)
+    output_dir = Path(output_dir)
+    diff_dir = ensure_dir(output_dir / "qa" / "selection-diffs")
+    current_frames = diff_pack.collect_current_theme_frames(theme_dir)
+    diff_paths = {}
+    for state in diff_pack.REQUIRED_STATES:
+        candidate = _first_frame(output_dir / "assets" / f"akari-{state}.apng")
+        diff_paths[state] = diff_pack.write_state_diff(
+            diff_dir / f"{state}.png",
+            state,
+            current_frames[state],
+            candidate,
+            preview_size,
+        )
+    contact_sheet = diff_pack.write_contact_sheet(
+        output_dir / "qa" / "webui-selection-diff-contact-sheet.png",
+        diff_paths,
+        preview_size,
+    )
+    return diff_paths, contact_sheet
 
 
 def _copy_theme(theme_dir, output_dir):
@@ -145,11 +197,15 @@ def build_selection_theme(
 
     qa_dir = ensure_dir(output_dir / "qa")
     contact_sheet = hq.write_contact_sheet(output_dir, qa_dir / "webui-selection-contact-sheet.png")
+    diff_paths, diff_contact_sheet = write_selection_diffs(theme_dir, output_dir)
+    for state, diff_path in diff_paths.items():
+        states[state]["diffPreview"] = diff_path.as_posix()
     package = hq.package_theme(output_dir, package_path)
     manifest = write_json(
         qa_dir / DEFAULT_MANIFEST_NAME,
         {
             "contactSheet": contact_sheet.as_posix(),
+            "diffContactSheet": diff_contact_sheet.as_posix(),
             "package": package.as_posix(),
             "schemaVersion": 1,
             "selectionPath": Path(selection_path).as_posix(),
@@ -161,6 +217,7 @@ def build_selection_theme(
     )
     return {
         "contactSheet": contact_sheet,
+        "diffContactSheet": diff_contact_sheet,
         "manifest": manifest,
         "package": package,
         "themeDir": output_dir,

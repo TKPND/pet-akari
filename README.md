@@ -83,7 +83,7 @@ rtk uv run python -m pet_akari.akari_phase4_webui_selection_theme build \
   --selection work/akari-hq-apng/phase4-webui-diff-packs/webui-diff-001/selection-template.json
 ```
 
-`adopt` states are converted from the selected WebUI PNG into 2-frame static APNG assets. `hold` and `reject` states keep the current theme asset. The output candidate theme, package zip, contact sheet, and manifest are written under ignored `work/akari-hq-apng/phase4-webui-selection-theme/`.
+`adopt` states are converted from the selected WebUI PNG into 2-frame static APNG assets with foreground aspect ratio preserved. `hold` and `reject` states keep the current theme asset. The output candidate theme, package zip, contact sheet, current-vs-candidate diff contact sheet, and manifest are written under ignored `work/akari-hq-apng/phase4-webui-selection-theme/`.
 
 ## テスト
 
