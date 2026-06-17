@@ -34,7 +34,8 @@ DECISION_COVERAGE = [
     "D-06: Generate face crops, dark/light previews, recognition template, and seam/motion notes.",
     "D-07: Keep visualAcceptance false until recognition validation passes.",
     "D-08: Require explicit recognition evidence for sleeping/error/attention/notification.",
-    "D-09: Measure idle/error/sleeping face crop distinctness after pet-size normalization.",
+    f"D-09: Measure all {len(FACE_CROP_STATES)} configured FACE_CROP_STATES face crop distinctness "
+    "after pet-size normalization.",
     "D-10: Record Phase 3 input and Phase 4 artifact hashes for Phase 5 drift rejection.",
 ]
 BOUNDARY_STATEMENT = (

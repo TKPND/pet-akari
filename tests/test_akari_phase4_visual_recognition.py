@@ -299,6 +299,9 @@ class AkariPhase4VisualRecognitionTests(unittest.TestCase):
             for name in artifact_names:
                 artifact = evidence["artifacts"][name]
                 self.assertEqual(hq.sha256_file(paths["qa_dir"] / name), artifact["sha256"])
+            d09 = next(item for item in evidence["decisionCoverage"] if item.startswith("D-09:"))
+            self.assertIn(f"all {len(phase4.FACE_CROP_STATES)} configured FACE_CROP_STATES", d09)
+            self.assertNotIn("idle/error/sleeping", d09)
             self.assertIn("phase5DriftBinding", evidence)
 
     def test_cli_build_prints_evidence_path(self):
