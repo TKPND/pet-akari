@@ -132,7 +132,7 @@ class AkariPhase4VisualRecognitionTests(unittest.TestCase):
                 "preview-128-dark.png",
                 "preview-160-light.png",
                 "preview-160-dark.png",
-                "face-crops-idle-error-sleeping.png",
+                "face-crops-idle-error-sleeping-attention-notification.png",
                 "support-contact-sheet.png",
                 "answer-key.json",
                 "recognition-results.template.json",
@@ -161,16 +161,25 @@ class AkariPhase4VisualRecognitionTests(unittest.TestCase):
             self.build(paths)
 
             evidence = json.loads((paths["qa_dir"] / "phase4-visual-recognition.json").read_text(encoding="utf-8"))
-            self.assertTrue((paths["qa_dir"] / "face-crops-idle-error-sleeping.png").is_file())
+            self.assertTrue((paths["qa_dir"] / "face-crops-idle-error-sleeping-attention-notification.png").is_file())
             pairs = evidence["faceCropDistinctness"]["pairs"]
-            self.assertEqual({"idle__error", "idle__sleeping", "error__sleeping"}, set(pairs))
+            expected_states = {"idle", "error", "sleeping", "attention", "notification"}
+            expected_pairs = {
+                "__".join((left, right))
+                for index, left in enumerate(sorted(expected_states))
+                for right in sorted(expected_states)[index + 1 :]
+            }
+            self.assertEqual(expected_pairs, set(pairs))
             for metric in pairs.values():
                 self.assertGreater(metric["meanAbsDiffRgb"], 5.0)
                 self.assertGreater(metric["changedPixelRatio"], 0.05)
 
     def test_face_crop_distinctness_fails_closed_on_near_identical_sources(self):
         with tempfile.TemporaryDirectory() as tmp, temporary_theme_sizes():
-            paths = self.make_fixture(tmp, identical_face_states=("idle", "error", "sleeping"))
+            paths = self.make_fixture(
+                tmp,
+                identical_face_states=("idle", "error", "sleeping", "attention", "notification"),
+            )
 
             with self.assertRaisesRegex(ValueError, "face crop distinctness"):
                 self.build(paths)
@@ -281,7 +290,7 @@ class AkariPhase4VisualRecognitionTests(unittest.TestCase):
                 "preview-128-dark.png",
                 "preview-160-light.png",
                 "preview-160-dark.png",
-                "face-crops-idle-error-sleeping.png",
+                "face-crops-idle-error-sleeping-attention-notification.png",
                 "support-contact-sheet.png",
                 "answer-key.json",
                 "recognition-results.template.json",

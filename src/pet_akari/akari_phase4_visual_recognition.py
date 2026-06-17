@@ -22,7 +22,8 @@ BACKGROUND_VARIANTS = {
     "dark": (24, 26, 34, 255),
 }
 REQUIRED_RECOGNITION_STATES = ("sleeping", "error", "attention", "notification")
-FACE_CROP_STATES = ("idle", "error", "sleeping")
+FACE_CROP_STATES = ("idle", "error", "sleeping", "attention", "notification")
+FACE_CROP_SHEET_NAME = "face-crops-idle-error-sleeping-attention-notification.png"
 REQUIREMENTS_COVERED = ["VQA-01", "VQA-03", "VQA-04"]
 DECISION_COVERAGE = [
     "D-01: Consume work/akari-hq-apng/phase3-staging/theme as the default candidate.",
@@ -269,7 +270,7 @@ def render_face_crops(theme_dir, output_path):
 def compute_face_crop_metrics(theme_dir):
     crops = _face_crops(theme_dir)
     pairs = {}
-    for first, second in combinations(FACE_CROP_STATES, 2):
+    for first, second in combinations(sorted(FACE_CROP_STATES), 2):
         diff = ImageChops.difference(crops[first], crops[second])
         stat = ImageStat.Stat(diff)
         mean_abs = sum(stat.mean) / len(stat.mean)
@@ -446,7 +447,7 @@ def build_phase4_visual_recognition(
     evidence_json = qa_dir / "phase4-visual-recognition.json"
     answer_key = build_answer_key(qa_dir / "answer-key.json", paths["manifest"])
     preview_paths = render_label_hidden_previews(paths["theme_dir"], qa_dir, answer_key)
-    face_crop_sheet = render_face_crops(paths["theme_dir"], qa_dir / "face-crops-idle-error-sleeping.png")
+    face_crop_sheet = render_face_crops(paths["theme_dir"], qa_dir / FACE_CROP_SHEET_NAME)
     face_metrics = compute_face_crop_metrics(paths["theme_dir"])
     support_contact_sheet = hq.write_contact_sheet(paths["theme_dir"], qa_dir / "support-contact-sheet.png")
     recognition_template = build_recognition_template(qa_dir / "recognition-results.template.json", answer_key)
@@ -701,7 +702,7 @@ def validate_phase4_visual_recognition(
         qa_dir=qa_dir,
         evidence_json=evidence_json,
         preview_paths={},
-        face_crop_sheet=qa_dir / "face-crops-idle-error-sleeping.png",
+        face_crop_sheet=qa_dir / FACE_CROP_SHEET_NAME,
         support_contact_sheet=qa_dir / "support-contact-sheet.png",
         answer_key=qa_dir / "answer-key.json",
         recognition_template=qa_dir / "recognition-results.template.json",
