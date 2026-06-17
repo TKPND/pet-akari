@@ -24,6 +24,7 @@ pip install -e ".[dev]"
 | `akari_source_set_approval.py` | ソースセットの同一性検証 |
 | `akari_full_motion_quality.py` | モーション品質チェック |
 | `akari_phase3_staging.py` | Phase 3 ステージング処理 |
+| `akari_phase4_webui_base_import.py` | Phase 4 WebUI生成ベース画像の取り込み |
 | `akari_phase4_candidate_batch.py` | Phase 4 修復候補のバッチ生成 |
 | `akari_phase4_gap_repair.py` | Phase 4 ギャップ修復 |
 | `akari_phase4_visual_recognition.py` | Phase 4 視覚認識テスト |
@@ -46,6 +47,18 @@ uv run python -m pet_akari.akari_phase4_candidate_batch build \
 ```
 
 生成結果は `work/akari-hq-apng/phase4-candidate-batch/<batch-id>/` に出力される。`batch-contact-sheet.png` を見て候補を選び、選んだ candidate を既存の human recognition gate に通す。
+
+### Phase 4 WebUI Base Import
+
+ChatGPT WebUIで生成した、チェッカー背景が焼き込まれた状態別PNGを透明化・正規化し、レビュー用アセットに取り込む:
+
+```bash
+rtk uv run python -m pet_akari.akari_phase4_webui_base_import build \
+  --input-archive work/akari-hq-apng/phase4-webui-base-images/raw/akari_clawd_base_images.tar.gz \
+  --run-id webui-base-001
+```
+
+取り込み結果は ignored `work/` 配下に、正規化済みRGBA PNG、contact sheet、`qa/webui-base-import-validation.json` として出力される。視覚的な承認判定は自動化せず、人間レビューで確認する。
 
 ## テスト
 

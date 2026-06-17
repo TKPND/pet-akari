@@ -323,7 +323,9 @@ def build_webui_base_import(
         with Image.open(source_path) as image:
             cleaned, background_metrics = remove_checker_background(image, tolerance=background_tolerance)
         cleaned_images[state] = cleaned.copy()
-        normalized, normalize_metrics = normalize_foreground(cleaned, canvas_size=canvas_size, padding_ratio=padding_ratio)
+        normalized, normalize_metrics = normalize_foreground(
+            cleaned, canvas_size=canvas_size, padding_ratio=padding_ratio
+        )
         output_path = normalized_dir / f"{state}.png"
         normalized.save(output_path)
         normalized_paths[state] = output_path
@@ -334,7 +336,9 @@ def build_webui_base_import(
             "outputPath": output_path.as_posix(),
         }
 
-    contact_sheets = [write_contact_sheet(qa_dir / f"contact-sheet-{size}.png", normalized_paths, size) for size in preview_sizes]
+    contact_sheets = [
+        write_contact_sheet(qa_dir / f"contact-sheet-{size}.png", normalized_paths, size) for size in preview_sizes
+    ]
     background_preview = write_background_removal_preview(
         qa_dir / "background-removal-preview.png", cleaned_images, preview_sizes[0]
     )
