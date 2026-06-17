@@ -217,7 +217,7 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
                 "preview-128-dark.png",
                 "preview-160-light.png",
                 "preview-160-dark.png",
-                "face-crops-idle-error-sleeping.png",
+                vr.FACE_CROP_SHEET_NAME,
                 "answer-key.json",
                 "recognition-results.template.json",
                 "support-contact-sheet.png",
