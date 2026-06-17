@@ -207,6 +207,52 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
                     run_dir=paths["run_dir"],
                 )
 
+    def test_recipe_overrides_are_recorded_in_validation(self):
+        with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
+            paths = self.make_fixture(tmp)
+
+            from pet_akari import akari_phase4_gap_repair as repair
+
+            recipes = {
+                "attention": "raised-hand-only",
+                "notification": "message-bubble",
+                "error": "lower-x-only",
+            }
+            validator_result = repair.phase3.ValidatorResult(
+                command=["fake-clawd"],
+                exit_code=0,
+                stdout="",
+                stderr="",
+                status="pass",
+            )
+            with mock.patch.object(repair.phase3, "run_clawd_validator", return_value=validator_result):
+                result = repair.build_phase4_gap_repair(
+                    source_theme=paths["theme_dir"],
+                    source_phase4_evidence=paths["source_evidence"],
+                    run_dir=paths["run_dir"],
+                    repair_recipes=recipes,
+                )
+
+            validation = json.loads(result.validation_json.read_text(encoding="utf-8"))
+            self.assertEqual(recipes, validation["repairRecipes"])
+            self.assertEqual("raised-hand-only", validation["states"]["attention"]["repairRecipe"])
+            self.assertEqual("message-bubble", validation["states"]["notification"]["repairRecipe"])
+            self.assertEqual("lower-x-only", validation["states"]["error"]["repairRecipe"])
+
+    def test_invalid_repair_recipe_fails_closed(self):
+        with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
+            paths = self.make_fixture(tmp)
+
+            from pet_akari import akari_phase4_gap_repair as repair
+
+            with self.assertRaisesRegex(ValueError, "unknown attention repair recipe"):
+                repair.build_phase4_gap_repair(
+                    source_theme=paths["theme_dir"],
+                    source_phase4_evidence=paths["source_evidence"],
+                    run_dir=paths["run_dir"],
+                    repair_recipes={"attention": "not-a-recipe"},
+                )
+
     @unittest.skipUnless(_HAS_CLAWD, "clawd-on-desk validator not available")
     def test_repairs_only_target_states_and_builds_pending_recognition_artifacts(self):
         with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
