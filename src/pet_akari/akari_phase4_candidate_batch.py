@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import itertools
 import json
 from dataclasses import dataclass
@@ -207,7 +208,9 @@ def build_candidate_batch(
             )
     built_records = [record for record in records if record.status == "built"]
     if built_records:
-        contact_sheet = write_batch_contact_sheet(batch_dir / "batch-contact-sheet.png", built_records, include_all_states)
+        contact_sheet = write_batch_contact_sheet(
+            batch_dir / "batch-contact-sheet.png", built_records, include_all_states
+        )
     else:
         contact_sheet = batch_dir / "batch-contact-sheet.png"
     manifest = write_json(
@@ -229,3 +232,42 @@ def build_candidate_batch(
         "manifest": manifest,
         "selectionTemplate": selection_template,
     }
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    build = subparsers.add_parser("build", help="build a Phase 4 repair candidate batch")
+    build.add_argument("--batch-id", default=DEFAULT_BATCH_ID)
+    build.add_argument("--output-root", type=Path, default=DEFAULT_BATCH_ROOT)
+    build.add_argument("--source-theme", type=Path, default=repair.DEFAULT_SOURCE_THEME)
+    build.add_argument("--source-phase4-evidence", type=Path, default=repair.DEFAULT_SOURCE_PHASE4_EVIDENCE)
+    build.add_argument("--clawd-validator", type=Path, default=repair.phase3.DEFAULT_CLAWD_VALIDATOR)
+    build.add_argument("--attention-recipes", default=",".join(repair.REPAIR_RECIPES["attention"]))
+    build.add_argument("--notification-recipes", default=",".join(repair.REPAIR_RECIPES["notification"]))
+    build.add_argument("--error-recipes", default=",".join(repair.REPAIR_RECIPES["error"]))
+    build.add_argument("--max-candidates", type=int, default=DEFAULT_MAX_CANDIDATES)
+    build.add_argument("--include-all-states", action="store_true")
+    return parser
+
+
+def main(argv=None):
+    args = _build_parser().parse_args(argv)
+    if args.command == "build":
+        result = build_candidate_batch(
+            batch_id=args.batch_id,
+            output_root=args.output_root,
+            source_theme=args.source_theme,
+            source_phase4_evidence=args.source_phase4_evidence,
+            clawd_validator=args.clawd_validator,
+            attention_recipes=parse_recipe_csv("attention", args.attention_recipes),
+            notification_recipes=parse_recipe_csv("notification", args.notification_recipes),
+            error_recipes=parse_recipe_csv("error", args.error_recipes),
+            max_candidates=args.max_candidates,
+            include_all_states=args.include_all_states,
+        )
+        print(f"wrote {result['manifest']}")
+
+
+if __name__ == "__main__":
+    main()

@@ -107,10 +107,32 @@ class Phase4CandidateBatchTests(unittest.TestCase):
                 status="built",
                 preview_paths={"128-light": preview.as_posix()},
             )
-            output = batch.write_batch_contact_sheet(root / "batch-contact-sheet.png", [record], include_all_states=False)
+            output = batch.write_batch_contact_sheet(
+                root / "batch-contact-sheet.png", [record], include_all_states=False
+            )
 
             sheet = Image.open(output).convert("RGB")
             self.assertEqual((492, 152), sheet.size)
             self.assertEqual((255, 0, 0), sheet.getpixel((84, 12)))
             self.assertEqual((0, 255, 0), sheet.getpixel((224, 12)))
             self.assertEqual((0, 0, 255), sheet.getpixel((364, 12)))
+
+    def test_build_parser_accepts_default_batch_command(self):
+        args = batch._build_parser().parse_args(
+            [
+                "build",
+                "--batch-id",
+                "trial",
+                "--max-candidates",
+                "3",
+                "--attention-recipes",
+                "raised-hand-only,check-badge",
+                "--include-all-states",
+            ]
+        )
+
+        self.assertEqual("build", args.command)
+        self.assertEqual("trial", args.batch_id)
+        self.assertEqual(3, args.max_candidates)
+        self.assertEqual("raised-hand-only,check-badge", args.attention_recipes)
+        self.assertTrue(args.include_all_states)

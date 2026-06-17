@@ -24,6 +24,7 @@ pip install -e ".[dev]"
 | `akari_source_set_approval.py` | ソースセットの同一性検証 |
 | `akari_full_motion_quality.py` | モーション品質チェック |
 | `akari_phase3_staging.py` | Phase 3 ステージング処理 |
+| `akari_phase4_candidate_batch.py` | Phase 4 修復候補のバッチ生成 |
 | `akari_phase4_gap_repair.py` | Phase 4 ギャップ修復 |
 | `akari_phase4_visual_recognition.py` | Phase 4 視覚認識テスト |
 | `akari_denser_motion.py` | 高密度モーション生成 |
@@ -34,6 +35,17 @@ pip install -e ".[dev]"
 | `reorder_loop.py` | ループフレーム順序調整 |
 
 Phase 4 の label-hidden human recognition gate は [docs/phase4-human-recognition.md](docs/phase4-human-recognition.md) を参照。
+
+Phase 4 の修復候補をまとめて探索する場合:
+
+```bash
+uv run python -m pet_akari.akari_phase4_candidate_batch build \
+  --batch-id trial-001 \
+  --max-candidates 27 \
+  --clawd-validator /absolute/path/to/validate-theme.js
+```
+
+生成結果は `work/akari-hq-apng/phase4-candidate-batch/<batch-id>/` に出力される。`batch-contact-sheet.png` を見て候補を選び、選んだ candidate を既存の human recognition gate に通す。
 
 ## テスト
 
