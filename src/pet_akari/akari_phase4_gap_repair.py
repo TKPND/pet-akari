@@ -17,6 +17,7 @@ from pet_akari import clawd_hq_theme as hq
 DEFAULT_SOURCE_THEME = Path("work/akari-hq-apng/phase3-staging/theme")
 DEFAULT_SOURCE_PHASE4_EVIDENCE = Path("work/akari-hq-apng/phase4-visual-recognition/qa/phase4-visual-recognition.json")
 DEFAULT_RUN_DIR = Path("work/akari-hq-apng/phase4-gap-repair")
+MIN_REPAIR_CUE_CANVAS = 24
 REPAIR_TARGETS = ("attention", "error", "notification", "sleeping")
 
 
@@ -106,11 +107,21 @@ def _protected_face_bottom(alpha):
     return top + int((bottom - top) * 0.45)
 
 
+def _can_draw_repair_cue(alpha, image_size):
+    image_width, image_height = image_size
+    if image_width < MIN_REPAIR_CUE_CANVAS or image_height < MIN_REPAIR_CUE_CANVAS:
+        return False
+    face_bottom = _protected_face_bottom(alpha)
+    return image_height - face_bottom >= max(8, image_height // 6)
+
+
 def _side_prop_rect(alpha, image_size, *, width_ratio, height_ratio, y_ratio):
     image_width, image_height = image_size
     left, top, right, bottom = alpha
-    prop_width = max(10, int(image_width * width_ratio))
-    prop_height = max(8, int(image_height * height_ratio))
+    if image_width <= 0 or image_height <= 0:
+        return (0, 0, 0, 0)
+    prop_width = min(image_width, max(1, max(10, int(image_width * width_ratio))))
+    prop_height = min(image_height, max(1, max(8, int(image_height * height_ratio))))
     gap = max(2, image_width // 48)
     if right + gap + prop_width <= image_width:
         prop_left = right + gap
@@ -150,6 +161,8 @@ def _repair_attention(frame, frame_index):
     alpha = image.getchannel("A").getbbox()
     if not alpha:
         return image
+    if not _can_draw_repair_cue(alpha, image.size):
+        return image
     left, top, right, bottom = alpha
 
     arm_width = max(2, width // 24)
@@ -181,6 +194,8 @@ def _repair_notification(frame, frame_index):
     width, height = image.size
     alpha = image.getchannel("A").getbbox()
     if not alpha:
+        return image
+    if not _can_draw_repair_cue(alpha, image.size):
         return image
     left, top, right, bottom = alpha
 
@@ -236,6 +251,8 @@ def _repair_error(frame, frame_index):
     width, height = image.size
     alpha = image.getchannel("A").getbbox()
     if not alpha:
+        return image
+    if not _can_draw_repair_cue(alpha, image.size):
         return image
     left, top, right, bottom = alpha
     face_bottom = _protected_face_bottom(alpha)

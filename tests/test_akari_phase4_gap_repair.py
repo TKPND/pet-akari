@@ -351,6 +351,22 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
                     f"attention/notification differ by only {ratio:.3f} at {height}px",
                 )
 
+    def test_repair_cues_leave_tiny_canvases_unchanged(self):
+        from pet_akari import akari_phase4_gap_repair as repair
+
+        cases = (
+            ("attention", repair._repair_attention, (1, 3)),
+            ("notification", repair._repair_notification, (1, 1)),
+            ("error", repair._repair_error, (1, 10)),
+        )
+        for state, repair_func, size in cases:
+            with self.subTest(state=state, size=size):
+                before = Image.new("RGBA", size, (120, 90, 180, 255))
+                after = repair_func(before, 0)
+
+                self.assertEqual(before.size, after.size)
+                self.assertIsNone(ImageChops.difference(before, after).getbbox())
+
     def test_sleeping_repair_keeps_smaller_visible_footprint(self):
         with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
             paths = self.make_fixture(tmp)
