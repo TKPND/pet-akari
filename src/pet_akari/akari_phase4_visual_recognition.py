@@ -270,7 +270,7 @@ def render_face_crops(theme_dir, output_path):
 def compute_face_crop_metrics(theme_dir):
     crops = _face_crops(theme_dir)
     pairs = {}
-    for first, second in combinations(sorted(FACE_CROP_STATES), 2):
+    for first, second in combinations(FACE_CROP_STATES, 2):
         diff = ImageChops.difference(crops[first], crops[second])
         stat = ImageStat.Stat(diff)
         mean_abs = sum(stat.mean) / len(stat.mean)

@@ -163,13 +163,13 @@ class AkariPhase4VisualRecognitionTests(unittest.TestCase):
             evidence = json.loads((paths["qa_dir"] / "phase4-visual-recognition.json").read_text(encoding="utf-8"))
             self.assertTrue((paths["qa_dir"] / "face-crops-idle-error-sleeping-attention-notification.png").is_file())
             pairs = evidence["faceCropDistinctness"]["pairs"]
-            expected_states = {"idle", "error", "sleeping", "attention", "notification"}
             expected_pairs = {
                 "__".join((left, right))
-                for index, left in enumerate(sorted(expected_states))
-                for right in sorted(expected_states)[index + 1 :]
+                for index, left in enumerate(phase4.FACE_CROP_STATES)
+                for right in phase4.FACE_CROP_STATES[index + 1 :]
             }
             self.assertEqual(expected_pairs, set(pairs))
+            self.assertTrue({"idle__error", "idle__sleeping", "error__sleeping"}.issubset(pairs))
             for metric in pairs.values():
                 self.assertGreater(metric["meanAbsDiffRgb"], 5.0)
                 self.assertGreater(metric["changedPixelRatio"], 0.05)
