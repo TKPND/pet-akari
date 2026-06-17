@@ -88,3 +88,55 @@ class Phase4WebuiBaseImportTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "foreground bbox is empty"):
             importer.alpha_bbox(result)
+
+    def test_normalize_foreground_fits_square_canvas_with_transparency(self):
+        image = Image.new("RGBA", (30, 40), (0, 0, 0, 0))
+        for y in range(10, 35):
+            for x in range(8, 22):
+                image.putpixel((x, y), (255, 120, 80, 255))
+
+        normalized, metrics = importer.normalize_foreground(image, canvas_size=64, padding_ratio=0.1)
+
+        self.assertEqual((64, 64), normalized.size)
+        self.assertEqual(0, normalized.getpixel((0, 0))[3])
+        self.assertIsNotNone(normalized.getchannel("A").getbbox())
+        self.assertEqual([8, 10, 22, 35], metrics["sourceBBox"])
+        self.assertEqual([64, 64], metrics["canvasSize"])
+
+    def test_write_contact_sheet_writes_labeled_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            normalized_dir = root / "normalized"
+            normalized_dir.mkdir()
+            normalized = {}
+            for index, state in enumerate(importer.REQUIRED_STATES):
+                path = normalized_dir / f"{state}.png"
+                image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+                image.putpixel((8 + index, 8), (255, 80, 40, 255))
+                image.save(path)
+                normalized[state] = path
+
+            output = importer.write_contact_sheet(root / "qa" / "contact-sheet-32.png", normalized, preview_size=32)
+
+            self.assertTrue(output.is_file())
+            with Image.open(output) as sheet:
+                self.assertEqual((32 * 4, (32 + 22) * 2), sheet.size)
+                self.assertEqual("RGB", sheet.mode)
+
+    def test_write_background_removal_preview_writes_checker_backed_sheet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cleaned = {}
+            for index, state in enumerate(importer.REQUIRED_STATES):
+                image = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+                image.putpixel((8 + index, 8), (255, 80, 40, 255))
+                cleaned[state] = image
+
+            output = importer.write_background_removal_preview(
+                root / "qa" / "background-removal-preview.png", cleaned, preview_size=32
+            )
+
+            self.assertTrue(output.is_file())
+            with Image.open(output) as sheet:
+                self.assertEqual((32 * 4, (32 + 22) * 2), sheet.size)
+                self.assertEqual("RGB", sheet.mode)

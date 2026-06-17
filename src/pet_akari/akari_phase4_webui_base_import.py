@@ -7,6 +7,8 @@ import re
 from collections import deque
 from pathlib import Path
 
+from PIL import Image, ImageDraw
+
 from pet_akari import clawd_hq_theme as hq
 
 DEFAULT_OUTPUT_ROOT = Path("work/akari-hq-apng/phase4-webui-base-images")
@@ -139,3 +141,91 @@ def remove_checker_background(image, tolerance=DEFAULT_BACKGROUND_TOLERANCE):
         "tolerance": tolerance,
     }
     return rgba, metrics
+
+
+def normalize_foreground(image, canvas_size=DEFAULT_CANVAS_SIZE, padding_ratio=DEFAULT_PADDING_RATIO):
+    rgba = image.convert("RGBA")
+    bbox = alpha_bbox(rgba)
+    crop = rgba.crop(bbox)
+    padding = max(0, int(canvas_size * padding_ratio))
+    max_size = max(1, canvas_size - padding * 2)
+    crop.thumbnail((max_size, max_size), hq._resample_filter())
+    canvas = Image.new("RGBA", (canvas_size, canvas_size), (0, 0, 0, 0))
+    left = (canvas_size - crop.width) // 2
+    top = (canvas_size - crop.height) // 2
+    canvas.alpha_composite(crop, (left, top))
+    metrics = {
+        "canvasSize": [canvas_size, canvas_size],
+        "normalizedBBox": list(alpha_bbox(canvas)),
+        "outputPasteBox": [left, top, left + crop.width, top + crop.height],
+        "padding": padding,
+        "sourceBBox": list(bbox),
+    }
+    return canvas, metrics
+
+
+def _render_preview_tile(path, preview_size):
+    with Image.open(path) as image:
+        frame = image.convert("RGBA")
+    frame.thumbnail((preview_size, preview_size), hq._resample_filter())
+    tile = Image.new("RGBA", (preview_size, preview_size), (255, 255, 255, 0))
+    left = (preview_size - frame.width) // 2
+    top = (preview_size - frame.height) // 2
+    tile.alpha_composite(frame, (left, top))
+    return tile
+
+
+def write_contact_sheet(path, normalized_paths, preview_size):
+    path = Path(path)
+    ensure_dir(path.parent)
+    columns = 4
+    label_height = 22
+    rows = (len(REQUIRED_STATES) + columns - 1) // columns
+    sheet = Image.new("RGBA", (columns * preview_size, rows * (preview_size + label_height)), (245, 247, 250, 255))
+    draw = ImageDraw.Draw(sheet)
+    for index, state in enumerate(REQUIRED_STATES):
+        tile = _render_preview_tile(normalized_paths[state], preview_size)
+        column = index % columns
+        row = index // columns
+        left = column * preview_size
+        top = row * (preview_size + label_height)
+        sheet.alpha_composite(tile, (left, top))
+        draw.text((left + 6, top + preview_size + 4), state, fill=(20, 24, 32, 255))
+    sheet.convert("RGB").save(path)
+    return path
+
+
+def _checker_tile(size):
+    tile = Image.new("RGBA", (size, size), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(tile)
+    cell = max(4, size // 8)
+    for y in range(0, size, cell):
+        for x in range(0, size, cell):
+            if ((x // cell) + (y // cell)) % 2:
+                draw.rectangle((x, y, x + cell - 1, y + cell - 1), fill=(232, 236, 242, 255))
+    return tile
+
+
+def write_background_removal_preview(path, cleaned_images, preview_size):
+    path = Path(path)
+    ensure_dir(path.parent)
+    columns = 4
+    label_height = 22
+    rows = (len(REQUIRED_STATES) + columns - 1) // columns
+    sheet = Image.new("RGBA", (columns * preview_size, rows * (preview_size + label_height)), (245, 247, 250, 255))
+    draw = ImageDraw.Draw(sheet)
+    for index, state in enumerate(REQUIRED_STATES):
+        frame = cleaned_images[state].copy().convert("RGBA")
+        frame.thumbnail((preview_size, preview_size), hq._resample_filter())
+        tile = _checker_tile(preview_size)
+        left = (preview_size - frame.width) // 2
+        top = (preview_size - frame.height) // 2
+        tile.alpha_composite(frame, (left, top))
+        column = index % columns
+        row = index // columns
+        sheet_left = column * preview_size
+        sheet_top = row * (preview_size + label_height)
+        sheet.alpha_composite(tile, (sheet_left, sheet_top))
+        draw.text((sheet_left + 6, sheet_top + preview_size + 4), state, fill=(20, 24, 32, 255))
+    sheet.convert("RGB").save(path)
+    return path
