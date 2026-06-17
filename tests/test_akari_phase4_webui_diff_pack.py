@@ -203,3 +203,73 @@ class Phase4WebuiDiffPackTests(unittest.TestCase):
             with Image.open(output) as image:
                 self.assertEqual((64 * 2 * 4, (64 + 44 + 22) * 2), image.size)
                 self.assertEqual("RGB", image.mode)
+
+    def test_build_webui_diff_pack_writes_review_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            theme_dir = self.write_theme(root)
+            import_dir = self.write_real_webui_import(root)
+
+            result = diff_pack.build_webui_diff_pack(
+                theme_dir=theme_dir,
+                webui_import_dir=import_dir,
+                output_root=root / "out",
+                pack_id="unit",
+                preview_sizes=(64,),
+            )
+
+            self.assertTrue((result["stateDiffsDir"] / "idle.png").is_file())
+            self.assertTrue((result["qaDir"] / "diff-contact-sheet-64.png").is_file())
+            selection = json.loads(result["selectionTemplate"].read_text(encoding="utf-8"))
+            manifest = json.loads(result["manifest"].read_text(encoding="utf-8"))
+            self.assertEqual("review", manifest["status"])
+            self.assertEqual("unit", manifest["packId"])
+            self.assertEqual(list(diff_pack.REQUIRED_STATES), manifest["stateOrder"])
+            self.assertEqual(set(diff_pack.REQUIRED_STATES), set(manifest["states"]))
+            self.assertEqual(list(diff_pack.REQUIRED_STATES), [item["state"] for item in selection["selections"]])
+            self.assertEqual("", selection["selections"][0]["decision"])
+            self.assertEqual(["adopt", "hold", "reject"], selection["selections"][0]["allowedDecisions"])
+            self.assertEqual("", selection["selections"][0]["notes"])
+
+    def test_build_webui_diff_pack_rejects_failed_webui_import(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            theme_dir = self.write_theme(root)
+            import_dir = self.write_webui_import(root, status="fail")
+
+            with self.assertRaisesRegex(ValueError, "WebUI import validation status is fail"):
+                diff_pack.build_webui_diff_pack(
+                    theme_dir=theme_dir,
+                    webui_import_dir=import_dir,
+                    output_root=root / "out",
+                    pack_id="unit",
+                )
+
+    def test_parse_preview_sizes_validates_values(self):
+        self.assertEqual((128, 160), diff_pack.parse_preview_sizes("128,160"))
+        with self.assertRaisesRegex(ValueError, "preview sizes must be positive"):
+            diff_pack.parse_preview_sizes("128,0")
+
+    def test_build_parser_accepts_build_command(self):
+        args = diff_pack._build_parser().parse_args(
+            [
+                "build",
+                "--theme-dir",
+                "theme",
+                "--webui-import-dir",
+                "webui",
+                "--output-root",
+                "out",
+                "--pack-id",
+                "trial",
+                "--preview-sizes",
+                "128,160",
+            ]
+        )
+
+        self.assertEqual("build", args.command)
+        self.assertEqual(Path("theme"), args.theme_dir)
+        self.assertEqual(Path("webui"), args.webui_import_dir)
+        self.assertEqual(Path("out"), args.output_root)
+        self.assertEqual("trial", args.pack_id)
+        self.assertEqual("128,160", args.preview_sizes)

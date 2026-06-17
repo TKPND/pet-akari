@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -188,3 +189,144 @@ def write_contact_sheet(path, state_diff_paths, preview_size):
         draw.text((left + 6, top + tile_height + 4), state, fill=(20, 24, 32, 255))
     sheet.convert("RGB").save(path)
     return path
+
+
+def parse_preview_sizes(value):
+    sizes = tuple(int(item.strip()) for item in value.split(",") if item.strip())
+    if not sizes:
+        raise ValueError("at least one preview size is required")
+    if any(size <= 0 for size in sizes):
+        raise ValueError("preview sizes must be positive")
+    return sizes
+
+
+def _selection_entry(state, current_preview, webui_preview, diff_preview):
+    return {
+        "allowedDecisions": list(ALLOWED_DECISIONS),
+        "currentPreview": current_preview.as_posix(),
+        "decision": "",
+        "diffPreview": diff_preview.as_posix(),
+        "notes": "",
+        "state": state,
+        "webuiPreview": webui_preview.as_posix(),
+    }
+
+
+def write_selection_template(path, state_diff_paths, webui_paths):
+    selections = [
+        _selection_entry(state, state_diff_paths[state], webui_paths[state], state_diff_paths[state])
+        for state in REQUIRED_STATES
+    ]
+    return write_json(
+        path,
+        {
+            "allowedDecisions": list(ALLOWED_DECISIONS),
+            "schemaVersion": 1,
+            "selections": selections,
+            "status": "template",
+        },
+    )
+
+
+def build_webui_diff_pack(
+    *,
+    theme_dir,
+    webui_import_dir,
+    output_root=DEFAULT_OUTPUT_ROOT,
+    pack_id=DEFAULT_PACK_ID,
+    preview_sizes=DEFAULT_PREVIEW_SIZES,
+):
+    pack_dir = ensure_dir(Path(output_root) / pack_id)
+    state_diffs_dir = ensure_dir(pack_dir / "state-diffs")
+    qa_dir = ensure_dir(pack_dir / "qa")
+    webui = load_webui_import(webui_import_dir)
+    current_frames = collect_current_theme_frames(theme_dir)
+    webui_images = {}
+    for state, path in webui["normalizedPaths"].items():
+        with Image.open(path) as image:
+            webui_images[state] = image.convert("RGBA")
+        _alpha_bbox(webui_images[state])
+
+    state_diff_paths = {}
+    states = {}
+    for state in REQUIRED_STATES:
+        state_diff = write_state_diff(
+            state_diffs_dir / f"{state}.png",
+            state,
+            current_frames[state],
+            webui_images[state],
+            max(preview_sizes),
+        )
+        state_diff_paths[state] = state_diff
+        states[state] = {
+            "current": image_metrics(current_frames[state]),
+            "currentAsset": (Path(theme_dir) / "assets" / f"akari-{state}.apng").as_posix(),
+            "diffPreview": state_diff.as_posix(),
+            "pixelDiff": {
+                str(size): pixel_diff_summary(current_frames[state], webui_images[state], size)
+                for size in preview_sizes
+            },
+            "webui": image_metrics(webui_images[state]),
+            "webuiAsset": webui["normalizedPaths"][state].as_posix(),
+        }
+
+    contact_sheets = [
+        write_contact_sheet(qa_dir / f"diff-contact-sheet-{size}.png", state_diff_paths, size)
+        for size in preview_sizes
+    ]
+    selection_template = write_selection_template(
+        pack_dir / "selection-template.json", state_diff_paths, webui["normalizedPaths"]
+    )
+    manifest = write_json(
+        pack_dir / "diff-pack-manifest.json",
+        {
+            "contactSheets": [path.as_posix() for path in contact_sheets],
+            "packDir": pack_dir.as_posix(),
+            "packId": pack_id,
+            "previewSizes": list(preview_sizes),
+            "schemaVersion": 1,
+            "selectionTemplate": selection_template.as_posix(),
+            "stateOrder": list(REQUIRED_STATES),
+            "states": states,
+            "status": "review",
+            "themeDir": Path(theme_dir).as_posix(),
+            "webuiImportDir": Path(webui_import_dir).as_posix(),
+            "webuiValidation": webui["validationPath"].as_posix(),
+        },
+    )
+    return {
+        "manifest": manifest,
+        "packDir": pack_dir,
+        "qaDir": qa_dir,
+        "selectionTemplate": selection_template,
+        "stateDiffsDir": state_diffs_dir,
+    }
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    build = subparsers.add_parser("build", help="build a Phase 4 WebUI review diff pack")
+    build.add_argument("--theme-dir", type=Path, required=True)
+    build.add_argument("--webui-import-dir", type=Path, required=True)
+    build.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    build.add_argument("--pack-id", default=DEFAULT_PACK_ID)
+    build.add_argument("--preview-sizes", default=",".join(str(size) for size in DEFAULT_PREVIEW_SIZES))
+    return parser
+
+
+def main(argv=None):
+    args = _build_parser().parse_args(argv)
+    if args.command == "build":
+        result = build_webui_diff_pack(
+            theme_dir=args.theme_dir,
+            webui_import_dir=args.webui_import_dir,
+            output_root=args.output_root,
+            pack_id=args.pack_id,
+            preview_sizes=parse_preview_sizes(args.preview_sizes),
+        )
+        print(f"wrote {result['manifest']}")
+
+
+if __name__ == "__main__":
+    main()
