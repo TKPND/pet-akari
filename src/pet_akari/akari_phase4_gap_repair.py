@@ -101,118 +101,169 @@ def _save_frames(frames, output_dir):
         frame.save(output_dir / f"{index:02d}.png")
 
 
-def _draw_face_cue(frame, *, mouth="smile", blush=False):
-    image = frame.copy()
-    draw = ImageDraw.Draw(image)
-    width, height = image.size
-    face = image.getchannel("A").getbbox()
-    if not face:
-        return image
-    left, top, right, bottom = face
-    cx = (left + right) // 2
-    head_top = top + max(4, height // 16)
-    eye_y = head_top + max(8, height // 10)
-    mouth_y = eye_y + max(7, height // 14)
-    draw.ellipse((cx - 13, eye_y - 2, cx - 9, eye_y + 2), fill=(22, 18, 26, 255))
-    draw.ellipse((cx + 9, eye_y - 2, cx + 13, eye_y + 2), fill=(22, 18, 26, 255))
-    if mouth == "open":
-        draw.ellipse((cx - 5, mouth_y - 3, cx + 5, mouth_y + 6), fill=(35, 16, 30, 255))
-        draw.arc((cx - 7, mouth_y - 5, cx + 7, mouth_y + 7), 180, 360, fill=(255, 135, 150, 255), width=2)
-    elif mouth == "alert":
-        draw.line((cx - 8, mouth_y, cx + 8, mouth_y - 3), fill=(28, 18, 28, 255), width=2)
+def _protected_face_bottom(alpha):
+    left, top, right, bottom = alpha
+    return top + int((bottom - top) * 0.45)
+
+
+def _side_prop_rect(alpha, image_size, *, width_ratio, height_ratio, y_ratio):
+    image_width, image_height = image_size
+    left, top, right, bottom = alpha
+    prop_width = max(10, int(image_width * width_ratio))
+    prop_height = max(8, int(image_height * height_ratio))
+    gap = max(2, image_width // 48)
+    if right + gap + prop_width <= image_width:
+        prop_left = right + gap
+    elif left - gap - prop_width >= 0:
+        prop_left = left - gap - prop_width
+    elif right + prop_width <= image_width:
+        prop_left = right
+    elif left - prop_width >= 0:
+        prop_left = left - prop_width
     else:
-        draw.arc((cx - 9, mouth_y - 5, cx + 9, mouth_y + 7), 10, 170, fill=(28, 18, 28, 255), width=2)
-    if blush:
-        draw.ellipse((cx - 24, mouth_y - 4, cx - 16, mouth_y + 3), fill=(246, 112, 134, 210))
-        draw.ellipse((cx + 16, mouth_y - 4, cx + 24, mouth_y + 3), fill=(246, 112, 134, 210))
-    return image
+        prop_left = max(0, min(image_width - prop_width, right - prop_width))
+    prop_top = max(0, min(image_height - prop_height, top + int((bottom - top) * y_ratio)))
+    return (prop_left, prop_top, prop_left + prop_width, prop_top + prop_height)
+
+
+def _draw_star(draw, center, radius, *, fill, outline):
+    cx, cy = center
+    points = [
+        (cx, cy - radius),
+        (cx + radius // 3, cy - radius // 3),
+        (cx + radius, cy - radius // 4),
+        (cx + radius // 2, cy + radius // 5),
+        (cx + radius * 2 // 3, cy + radius),
+        (cx, cy + radius // 2),
+        (cx - radius * 2 // 3, cy + radius),
+        (cx - radius // 2, cy + radius // 5),
+        (cx - radius, cy - radius // 4),
+        (cx - radius // 3, cy - radius // 3),
+    ]
+    draw.polygon(points, fill=fill, outline=outline)
 
 
 def _repair_attention(frame, frame_index):
-    image = _draw_face_cue(frame, mouth="alert")
+    image = frame.copy()
     draw = ImageDraw.Draw(image)
     width, height = image.size
     alpha = image.getchannel("A").getbbox()
     if not alpha:
         return image
     left, top, right, bottom = alpha
-    hand_x = right - max(4, width // 12)
-    shoulder_y = top + int((bottom - top) * 0.48)
-    hand_y = top + max(4, height // 12) + (frame_index % 2)
+
     arm_width = max(2, width // 24)
-    draw.line((hand_x - 7, shoulder_y, hand_x + 2, hand_y), fill=(62, 48, 108, 255), width=arm_width)
-    draw.ellipse((hand_x - 2, hand_y - 3, hand_x + 5, hand_y + 4), fill=(245, 190, 178, 255))
-    mark_height = max(12, height // 8)
-    mark_x = max(3, min(width - 6, right - max(8, width // 7)))
-    mark_top = max(1, top + max(1, height // 24))
-    mark_width = max(3, width // 42)
-    draw.line((mark_x, mark_top, mark_x, mark_top + mark_height), fill=(42, 94, 238, 255), width=mark_width)
-    dot_radius = max(2, width // 48)
-    dot_y = min(height - dot_radius - 1, mark_top + mark_height + dot_radius + 2)
-    draw.ellipse(
-        (mark_x - dot_radius, dot_y - dot_radius, mark_x + dot_radius, dot_y + dot_radius),
-        fill=(42, 94, 238, 255),
-    )
-    ray_top = mark_top + max(2, mark_height // 4)
-    draw.line((mark_x - 8, ray_top + 3, mark_x - 3, ray_top), fill=(42, 94, 238, 255), width=mark_width)
-    draw.line((mark_x + 3, ray_top, mark_x + 8, ray_top - 4), fill=(42, 94, 238, 255), width=mark_width)
-    draw.line((mark_x - 7, ray_top + 11, mark_x - 3, ray_top + 8), fill=(42, 94, 238, 255), width=mark_width)
+    face_bottom = _protected_face_bottom(alpha)
+    shoulder_y = top + int((bottom - top) * 0.52)
+    hand_x = right - max(4, width // 14)
+    hand_y = max(face_bottom + arm_width + 2, top + int((bottom - top) * 0.18) + (frame_index % 2))
+    hand_y = min(bottom - max(4, height // 16), hand_y)
+    draw.line((hand_x - 8, shoulder_y, hand_x + 3, hand_y), fill=(62, 48, 108, 255), width=arm_width)
+    draw.ellipse((hand_x - 2, hand_y - 3, hand_x + 6, hand_y + 5), fill=(245, 190, 178, 255))
+
+    prop = _side_prop_rect(alpha, image.size, width_ratio=0.18, height_ratio=0.16, y_ratio=0.06)
+    prop_left, prop_top, prop_right, prop_bottom = prop
+    prop_height = prop_bottom - prop_top
+    prop_top = max(prop_top, face_bottom + max(2, height // 32))
+    prop_top = min(height - prop_height, prop_top)
+    prop_bottom = prop_top + prop_height
+    radius = max(5, min(prop_right - prop_left, prop_bottom - prop_top) // 2)
+    center = ((prop_left + prop_right) // 2, (prop_top + prop_bottom) // 2 + (frame_index % 2))
+    _draw_star(draw, center, radius, fill=(255, 220, 86, 255), outline=(64, 76, 145, 255))
+    inner_radius = max(2, radius // 2)
+    _draw_star(draw, center, inner_radius, fill=(255, 255, 236, 255), outline=(255, 220, 86, 255))
     return image
 
 
 def _repair_notification(frame, frame_index):
-    image = _draw_face_cue(frame, mouth="open", blush=True)
+    image = frame.copy()
     draw = ImageDraw.Draw(image)
     width, height = image.size
     alpha = image.getchannel("A").getbbox()
     if not alpha:
         return image
     left, top, right, bottom = alpha
-    cue_width = max(18, width // 2)
-    cue_height = max(8, height // 7)
-    center_x = (left + right) // 2
-    cue_left = max(0, min(width - cue_width, center_x - cue_width // 2))
-    cue_top = top + int((bottom - top) * 0.42) + (frame_index % 2)
-    cue_right = cue_left + cue_width
-    cue_bottom = min(height - 1, cue_top + cue_height)
+
+    face_bottom = _protected_face_bottom(alpha)
+    card = _side_prop_rect(alpha, image.size, width_ratio=0.28, height_ratio=0.2, y_ratio=0.26)
+    card_left, card_top, card_right, card_bottom = card
+    card_top = max(card_top + frame_index % 2, face_bottom + max(2, height // 32))
+    card_bottom = max(card_bottom + frame_index % 2, card_top + max(8, int(height * 0.2)))
+    card_bottom = min(height - 1, card_bottom)
     draw.rounded_rectangle(
-        (cue_left, cue_top, cue_right, cue_bottom),
-        radius=max(2, width // 24),
-        fill=(255, 202, 84, 255),
-        outline=(255, 252, 224, 255),
-        width=2,
+        (card_left, card_top, card_right, card_bottom),
+        radius=max(3, width // 32),
+        fill=(250, 236, 174, 255),
+        outline=(70, 105, 168, 255),
+        width=max(2, width // 96),
     )
-    mid_y = (cue_top + cue_bottom) // 2
-    draw.line((cue_left + 3, cue_top + 3, center_x, mid_y), fill=(58, 94, 142, 255), width=1)
-    draw.line((cue_right - 3, cue_top + 3, center_x, mid_y), fill=(58, 94, 142, 255), width=1)
-    draw.line((cue_left + 4, cue_bottom - 3, cue_right - 4, cue_bottom - 3), fill=(255, 252, 224, 255), width=1)
+
+    button_y = card_top + int((card_bottom - card_top) * 0.68)
+    button_radius = max(2, (card_bottom - card_top) // 8)
+    left_button_x = card_left + int((card_right - card_left) * 0.35)
+    right_button_x = card_left + int((card_right - card_left) * 0.65)
+    draw.ellipse(
+        (
+            left_button_x - button_radius,
+            button_y - button_radius,
+            left_button_x + button_radius,
+            button_y + button_radius,
+        ),
+        fill=(78, 174, 110, 255),
+    )
+    draw.ellipse(
+        (
+            right_button_x - button_radius,
+            button_y - button_radius,
+            right_button_x + button_radius,
+            button_y + button_radius,
+        ),
+        fill=(214, 86, 96, 255),
+    )
+
+    bubble_tail = [
+        (card_left + max(2, width // 64), card_bottom - max(2, height // 80)),
+        (max(0, right - max(2, width // 64)), min(bottom, card_bottom + max(4, height // 32))),
+        (card_left + max(6, width // 24), card_bottom - max(2, height // 80)),
+    ]
+    draw.polygon(bubble_tail, fill=(250, 236, 174, 255), outline=(70, 105, 168, 255))
     return image
 
 
 def _repair_error(frame, frame_index):
-    image = _draw_face_cue(frame, mouth="alert")
+    image = frame.copy()
     draw = ImageDraw.Draw(image)
     width, height = image.size
     alpha = image.getchannel("A").getbbox()
     if not alpha:
         return image
     left, top, right, bottom = alpha
-    x_left = max(1, left + width // 20)
-    x_top = top + max(3, height // 12) + (frame_index % 2)
-    x_size = max(8, width // 4)
-    draw.line((x_left, x_top, x_left + x_size, x_top + x_size), fill=(218, 54, 64, 255), width=2)
-    draw.line((x_left + x_size, x_top, x_left, x_top + x_size), fill=(218, 54, 64, 255), width=2)
-    cloud_top = max(0, top - 1)
-    cloud_left = max(0, left + width // 5)
-    cloud_right = min(width - 1, right - width // 6)
-    if cloud_right > cloud_left + 4:
-        draw.arc(
-            (cloud_left, cloud_top, cloud_right, cloud_top + max(8, height // 5)),
-            180,
-            360,
-            fill=(75, 78, 96, 255),
-            width=2,
-        )
+    face_bottom = _protected_face_bottom(alpha)
+
+    x_size = max(10, width // 5)
+    x_left = max(0, min(width - x_size - 1, left + max(2, width // 16)))
+    x_top = max(face_bottom + max(2, height // 32), top + int((bottom - top) * 0.58) + (frame_index % 2))
+    x_top = min(height - x_size - 1, x_top)
+    stroke = max(2, width // 96)
+    draw.line((x_left, x_top, x_left + x_size, x_top + x_size), fill=(218, 54, 64, 255), width=stroke)
+    draw.line((x_left + x_size, x_top, x_left, x_top + x_size), fill=(218, 54, 64, 255), width=stroke)
+
+    prop = _side_prop_rect(alpha, image.size, width_ratio=0.22, height_ratio=0.16, y_ratio=0.58)
+    prop_left, prop_top, prop_right, prop_bottom = prop
+    prop_top = max(prop_top, face_bottom + max(2, height // 32))
+    draw.rounded_rectangle(
+        (prop_left, prop_top, prop_right, prop_bottom),
+        radius=max(2, width // 48),
+        fill=(70, 74, 92, 255),
+        outline=(218, 54, 64, 255),
+        width=stroke,
+    )
+    crack_x = (prop_left + prop_right) // 2
+    draw.line(
+        (crack_x, prop_top + 2, crack_x - 3, prop_top + 7, crack_x + 2, prop_top + 12),
+        fill=(245, 226, 170, 255),
+        width=max(1, stroke - 1),
+    )
     return image
 
 

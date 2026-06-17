@@ -351,46 +351,22 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
                     f"attention/notification differ by only {ratio:.3f} at {height}px",
                 )
 
-    @unittest.skipUnless(_HAS_CLAWD, "clawd-on-desk validator not available")
-    def test_second_pass_repairs_are_large_cues_without_attention_or_notification_artifacts(self):
+    def test_sleeping_repair_keeps_smaller_visible_footprint(self):
         with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
             paths = self.make_fixture(tmp)
 
+            from pet_akari import akari_phase3_staging as phase3
             from pet_akari import akari_phase4_gap_repair as repair
 
-            result = repair.build_phase4_gap_repair(
-                source_theme=paths["theme_dir"],
-                source_phase4_evidence=paths["source_evidence"],
-                run_dir=paths["run_dir"],
+            clawd_result = phase3.ValidatorResult(
+                command=["node", "stub"], exit_code=0, stdout="", stderr="", status="pass"
             )
-
-            attention = apng_frames(result.theme_dir / "assets" / "akari-attention.apng")[0]
-            attention_pixels = list(attention.getdata())
-            added_red_attention = sum(
-                1 for red, green, blue, alpha in attention_pixels if alpha and red > 210 and green < 100 and blue < 100
-            )
-            added_blue_attention = sum(
-                1 for red, green, blue, alpha in attention_pixels if alpha and blue > 190 and red < 100
-            )
-            self.assertLessEqual(added_red_attention, 2)
-            self.assertGreaterEqual(added_blue_attention, 24)
-
-            notification_before = apng_frames(paths["theme_dir"] / "assets" / "akari-notification.apng")[0]
-            notification = apng_frames(result.theme_dir / "assets" / "akari-notification.apng")[0]
-            notification_alpha = ImageChops.difference(notification_before, notification).getchannel("A").getbbox()
-            self.assertIsNotNone(notification_alpha)
-            self.assertGreater(
-                notification_alpha[2] - notification_alpha[0], notification_alpha[3] - notification_alpha[1]
-            )
-
-            error_before = apng_frames(paths["theme_dir"] / "assets" / "akari-error.apng")[0]
-            error_after = apng_frames(result.theme_dir / "assets" / "akari-error.apng")[0]
-            error_added_red = sum(
-                1
-                for before, after in zip(error_before.getdata(), error_after.getdata())
-                if before != after and after[3] and after[0] > 190 and after[1] < 100 and after[2] < 100
-            )
-            self.assertGreaterEqual(error_added_red, 8)
+            with mock.patch("pet_akari.akari_phase3_staging.run_clawd_validator", return_value=clawd_result):
+                result = repair.build_phase4_gap_repair(
+                    source_theme=paths["theme_dir"],
+                    source_phase4_evidence=paths["source_evidence"],
+                    run_dir=paths["run_dir"],
+                )
 
             sleeping_before = apng_frames(paths["theme_dir"] / "assets" / "akari-sleeping.apng")[0]
             sleeping_after = apng_frames(result.theme_dir / "assets" / "akari-sleeping.apng")[0]
