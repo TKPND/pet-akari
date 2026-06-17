@@ -130,3 +130,24 @@ class Phase4ChatgptProFaithfulPackTests(unittest.TestCase):
             with Image.open(contact_sheet) as image:
                 self.assertEqual((64 * 4, (64 + 22) * 2), image.size)
                 self.assertEqual("RGB", image.mode)
+
+    def test_build_parser_accepts_build_command(self):
+        args = faithful_pack._build_parser().parse_args(
+            [
+                "build",
+                "--source-dir",
+                "include_hat",
+                "--output-root",
+                "out",
+                "--pack-id",
+                "trial-pack",
+                "--preview-size",
+                "96",
+            ]
+        )
+
+        self.assertEqual("build", args.command)
+        self.assertEqual(Path("include_hat"), args.source_dir)
+        self.assertEqual(Path("out"), args.output_root)
+        self.assertEqual("trial-pack", args.pack_id)
+        self.assertEqual(96, args.preview_size)

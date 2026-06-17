@@ -12,7 +12,6 @@ from PIL import Image, ImageDraw
 
 from pet_akari import clawd_hq_theme as hq
 
-
 REQUIRED_STATES = hq.CORE_STATES
 DEFAULT_SOURCE_DIR = Path.home() / "akari_clawd_base_images_include_hat"
 DEFAULT_OUTPUT_ROOT = Path("work/akari-hq-apng/phase4-chatgpt-pro-faithful-pack")
@@ -247,3 +246,30 @@ def build_faithful_pack(
         "packDir": pack_dir,
         "prompt": prompt,
     }
+
+
+def _build_parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    build = subparsers.add_parser("build", help="build a ChatGPT Pro A Faithful request pack")
+    build.add_argument("--source-dir", type=Path, default=DEFAULT_SOURCE_DIR)
+    build.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    build.add_argument("--pack-id", default=DEFAULT_PACK_ID)
+    build.add_argument("--preview-size", type=int, default=DEFAULT_PREVIEW_SIZE)
+    return parser
+
+
+def main(argv=None):
+    args = _build_parser().parse_args(argv)
+    if args.command == "build":
+        result = build_faithful_pack(
+            source_dir=args.source_dir,
+            output_root=args.output_root,
+            pack_id=args.pack_id,
+            preview_size=args.preview_size,
+        )
+        print(f"wrote {result['archive']}")
+
+
+if __name__ == "__main__":
+    main()

@@ -27,6 +27,7 @@ pip install -e ".[dev]"
 | `akari_phase4_webui_base_import.py` | Phase 4 WebUI生成ベース画像の取り込み |
 | `akari_phase4_webui_diff_pack.py` | Phase 4 WebUIベース画像の現行theme比較パック |
 | `akari_phase4_webui_selection_theme.py` | Phase 4 WebUI選別結果から候補themeを生成 |
+| `akari_phase4_chatgpt_pro_faithful_pack.py` | ChatGPT Pro Web向けA Faithful依頼パック生成 |
 | `akari_phase4_candidate_batch.py` | Phase 4 修復候補のバッチ生成 |
 | `akari_phase4_gap_repair.py` | Phase 4 ギャップ修復 |
 | `akari_phase4_visual_recognition.py` | Phase 4 視覚認識テスト |
@@ -84,6 +85,17 @@ rtk uv run python -m pet_akari.akari_phase4_webui_selection_theme build \
 ```
 
 `adopt` states are converted from the selected WebUI PNG into 2-frame static APNG assets with foreground aspect ratio preserved. `hold` and `reject` states keep the current theme asset. The output candidate theme, package zip, contact sheet, current-vs-candidate diff contact sheet, and manifest are written under ignored `work/akari-hq-apng/phase4-webui-selection-theme/`.
+
+### Phase 4 ChatGPT Pro Faithful Pack
+
+Build a tar.gz request pack for ChatGPT Pro Web from the completed `include_hat` state bases:
+
+```bash
+rtk uv run python -m pet_akari.akari_phase4_chatgpt_pro_faithful_pack build \
+  --source-dir ~/akari_clawd_base_images_include_hat
+```
+
+The pack is written under ignored `work/akari-hq-apng/phase4-chatgpt-pro-faithful-pack/` and contains `PROMPT.md`, `MANIFEST.json`, `references/000-base.png`, normalized state-base filenames, a state-base contact sheet, and `akari-stage2-faithful-pack.tar.gz`. It asks ChatGPT Pro to first inspect the pack and only generate A Faithful candidates after explicit confirmation.
 
 ## テスト
 
