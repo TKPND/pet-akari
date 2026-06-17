@@ -339,6 +339,7 @@ class ClawdHqThemeTests(unittest.TestCase):
             self.assertTrue(manifest_path.is_file())
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(manifest["manifestVersion"], 1)
+            self.assertEqual(manifest["exporter"]["tool"], "python -m pet_akari.clawd_hq_theme")
             self.assertEqual(manifest["exporter"]["runtimeSize"], [hq.RUNTIME_SIZE[0], hq.RUNTIME_SIZE[1]])
             self.assertEqual(set(manifest["states"]), set(hq.CORE_STATES))
 

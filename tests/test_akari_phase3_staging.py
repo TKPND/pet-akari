@@ -183,6 +183,11 @@ class AkariPhase3StagingTests(unittest.TestCase):
                 self.assertEqual(["ASSET-03", "VQA-05", "PKG-01", "PKG-02"], evidence["requirementsCovered"])
                 self.assertEqual(set(hq.CORE_STATES), set(evidence["states"]))
                 self.assertEqual("pass", evidence["clawdValidator"]["status"])
+                self.assertIn(
+                    "D-04: Use python -m pet_akari.clawd_hq_theme for APNG/theme/manifest contracts.",
+                    evidence["decisionCoverage"],
+                )
+                self.assertNotIn("tools/clawd_hq_theme.py", " ".join(evidence["decisionCoverage"]))
 
     def test_records_compatibility_only_boundary_not_visual_acceptance(self):
         with tempfile.TemporaryDirectory() as tmp:

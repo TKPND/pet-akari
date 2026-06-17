@@ -25,7 +25,7 @@ DECISION_COVERAGE = [
     "D-01: Phase 3 validates source-set-approval.json before export.",
     "D-02: Stage exactly hq.CORE_STATES with no silent fallback.",
     "D-03: Preserve seamsafe-promoted as the source-set identity lock.",
-    "D-04: Use tools/clawd_hq_theme.py for APNG/theme/manifest contracts.",
+    "D-04: Use python -m pet_akari.clawd_hq_theme for APNG/theme/manifest contracts.",
     "D-05: Bind runtime assets to source paths, hashes, frame counts, and timing.",
     "D-06: Fail closed on missing masters, stale lineage, invalid assets, or theme mismatch.",
     "D-07: Record Clawd validator success as compatibility-only evidence.",

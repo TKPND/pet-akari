@@ -611,7 +611,7 @@ def build_export_manifest(masters_dir, theme_dir, state_frames, state_outputs, m
     manifest = {
         "manifestVersion": 1,
         "exporter": {
-            "tool": "tools/clawd_hq_theme.py",
+            "tool": "python -m pet_akari.clawd_hq_theme",
             "runtimeSize": [RUNTIME_SIZE[0], RUNTIME_SIZE[1]],
             "sourceMasterRoot": str(masters_dir.resolve()),
         },
