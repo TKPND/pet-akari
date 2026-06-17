@@ -154,3 +154,96 @@ def write_prompt(pack_dir):
     output = pack_dir / "PROMPT.md"
     output.write_text(prompt_text(), encoding="utf-8")
     return output
+
+
+def copy_pack_assets(source_dir, pack_dir):
+    source_images = collect_source_images(source_dir)
+    pack_dir = Path(pack_dir)
+    references_dir = ensure_dir(pack_dir / "references")
+    state_bases_dir = ensure_dir(pack_dir / "state_bases")
+    reference_output = references_dir / "000-base.png"
+    shutil.copy2(source_images["base"], reference_output)
+    state_outputs = {}
+    for state, source_path in source_images["states"].items():
+        output = state_bases_dir / f"{state}.png"
+        shutil.copy2(source_path, output)
+        state_outputs[state] = output
+    return {"reference": reference_output, "stateBases": state_outputs}
+
+
+def _render_tile(path, preview_size):
+    with Image.open(path) as image:
+        frame = image.convert("RGBA")
+    frame.thumbnail((preview_size, preview_size), hq._resample_filter())
+    tile = Image.new("RGBA", (preview_size, preview_size), (245, 247, 250, 255))
+    left = (preview_size - frame.width) // 2
+    top = (preview_size - frame.height) // 2
+    tile.alpha_composite(frame, (left, top))
+    return tile
+
+
+def write_state_base_contact_sheet(path, state_paths, preview_size=DEFAULT_PREVIEW_SIZE):
+    path = Path(path)
+    ensure_dir(path.parent)
+    columns = 4
+    label_height = 22
+    rows = (len(REQUIRED_STATES) + columns - 1) // columns
+    sheet = Image.new(
+        "RGBA",
+        (columns * preview_size, rows * (preview_size + label_height)),
+        (245, 247, 250, 255),
+    )
+    draw = ImageDraw.Draw(sheet)
+    for index, state in enumerate(REQUIRED_STATES):
+        tile = _render_tile(state_paths[state], preview_size)
+        column = index % columns
+        row = index // columns
+        left = column * preview_size
+        top = row * (preview_size + label_height)
+        sheet.alpha_composite(tile, (left, top))
+        draw.text((left + 6, top + preview_size + 4), state, fill=(20, 24, 32, 255))
+    sheet.convert("RGB").save(path)
+    return path
+
+
+def write_archive(pack_dir, archive_path=None):
+    pack_dir = Path(pack_dir)
+    archive_path = Path(archive_path) if archive_path else pack_dir.parent / f"{pack_dir.name}.tar.gz"
+    ensure_dir(archive_path.parent)
+    if archive_path.exists():
+        archive_path.unlink()
+    with tarfile.open(archive_path, "w:gz") as archive:
+        for path in sorted(pack_dir.rglob("*")):
+            if path.is_file():
+                archive.add(path, arcname=Path(pack_dir.name) / path.relative_to(pack_dir))
+    return archive_path
+
+
+def build_faithful_pack(
+    *,
+    source_dir=DEFAULT_SOURCE_DIR,
+    output_root=DEFAULT_OUTPUT_ROOT,
+    pack_id=DEFAULT_PACK_ID,
+    preview_size=DEFAULT_PREVIEW_SIZE,
+):
+    output_root = Path(output_root)
+    pack_dir = output_root / pack_id
+    if pack_dir.exists():
+        shutil.rmtree(pack_dir)
+    ensure_dir(pack_dir)
+    copied = copy_pack_assets(source_dir, pack_dir)
+    manifest = write_manifest(pack_dir, pack_id=pack_id)
+    prompt = write_prompt(pack_dir)
+    contact_sheet = write_state_base_contact_sheet(
+        pack_dir / "contact-sheets" / "state-bases.png",
+        copied["stateBases"],
+        preview_size=preview_size,
+    )
+    archive = write_archive(pack_dir)
+    return {
+        "archive": archive,
+        "contactSheet": contact_sheet,
+        "manifest": manifest,
+        "packDir": pack_dir,
+        "prompt": prompt,
+    }

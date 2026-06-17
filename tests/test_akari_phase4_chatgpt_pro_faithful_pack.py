@@ -1,4 +1,5 @@
 import json
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -82,3 +83,50 @@ class Phase4ChatgptProFaithfulPackTests(unittest.TestCase):
             self.assertIn("1024x1536", prompt)
             self.assertIn("transparent", prompt.lower())
             self.assertIn("ローカル側", prompt)
+
+    def test_build_faithful_pack_copies_assets_and_writes_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_dir = self.write_include_hat_source(root)
+
+            result = faithful_pack.build_faithful_pack(
+                source_dir=source_dir,
+                output_root=root / "out",
+                pack_id="akari-stage2-faithful-pack",
+                preview_size=64,
+            )
+
+            pack_dir = result["packDir"]
+            self.assertTrue((pack_dir / "PROMPT.md").is_file())
+            self.assertTrue((pack_dir / "MANIFEST.json").is_file())
+            self.assertTrue((pack_dir / "references" / "000-base.png").is_file())
+            self.assertTrue((pack_dir / "state_bases" / "idle.png").is_file())
+            self.assertTrue((pack_dir / "state_bases" / "working.png").is_file())
+            self.assertTrue(result["contactSheet"].is_file())
+            self.assertTrue(result["archive"].is_file())
+
+            with tarfile.open(result["archive"], "r:gz") as archive:
+                names = set(archive.getnames())
+            self.assertIn("akari-stage2-faithful-pack/PROMPT.md", names)
+            self.assertIn("akari-stage2-faithful-pack/MANIFEST.json", names)
+            self.assertIn("akari-stage2-faithful-pack/references/000-base.png", names)
+            self.assertIn("akari-stage2-faithful-pack/state_bases/sleeping.png", names)
+            self.assertIn("akari-stage2-faithful-pack/contact-sheets/state-bases.png", names)
+
+    def test_write_contact_sheet_renders_state_bases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_dir = self.write_include_hat_source(root)
+            pack_dir = root / "pack"
+            copied = faithful_pack.copy_pack_assets(source_dir, pack_dir)
+
+            contact_sheet = faithful_pack.write_state_base_contact_sheet(
+                pack_dir / "contact-sheets" / "state-bases.png",
+                copied["stateBases"],
+                preview_size=64,
+            )
+
+            self.assertTrue(contact_sheet.is_file())
+            with Image.open(contact_sheet) as image:
+                self.assertEqual((64 * 4, (64 + 22) * 2), image.size)
+                self.assertEqual("RGB", image.mode)
