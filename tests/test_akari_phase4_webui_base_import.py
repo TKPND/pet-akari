@@ -1,4 +1,5 @@
 import json
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -140,3 +141,78 @@ class Phase4WebuiBaseImportTests(unittest.TestCase):
             with Image.open(output) as sheet:
                 self.assertEqual((32 * 4, (32 + 22) * 2), sheet.size)
                 self.assertEqual("RGB", sheet.mode)
+
+    def make_import_archive(self, root):
+        input_dir = self.write_state_inputs(root)
+        for path in input_dir.glob("*.png"):
+            image = self.checker_image((32, 32))
+            for y in range(8, 24):
+                for x in range(10, 22):
+                    image.putpixel((x, y), (255, 120, 80, 255))
+            image.save(path)
+        archive = root / "akari_clawd_base_images.tar.gz"
+        with tarfile.open(archive, "w:gz") as tar:
+            tar.add(input_dir, arcname=input_dir.name)
+        return archive
+
+    def test_build_webui_base_import_writes_outputs_and_validation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = self.make_import_archive(root)
+
+            result = importer.build_webui_base_import(
+                input_archive=archive,
+                output_root=root / "out",
+                run_id="unit",
+                canvas_size=64,
+                preview_sizes=(32,),
+                background_tolerance=18,
+                padding_ratio=0.1,
+            )
+
+            self.assertTrue((result["normalizedDir"] / "idle.png").is_file())
+            self.assertTrue((result["qaDir"] / "contact-sheet-32.png").is_file())
+            self.assertTrue((result["qaDir"] / "background-removal-preview.png").is_file())
+            validation = json.loads(result["validationJson"].read_text(encoding="utf-8"))
+            self.assertEqual("review", validation["status"])
+            self.assertEqual("unit", validation["runId"])
+            self.assertEqual(list(importer.REQUIRED_STATES), validation["stateOrder"])
+            self.assertEqual(set(importer.REQUIRED_STATES), set(validation["states"]))
+            self.assertEqual(
+                "working-notification visual distinction requires human review",
+                validation["humanReview"]["requiredChecks"][0],
+            )
+
+    def test_build_webui_base_import_rejects_archive_and_dir_together(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive = self.make_import_archive(root)
+            input_dir = root / "akari_clawd_base_images"
+
+            with self.assertRaisesRegex(ValueError, "specify exactly one of input_archive or input_dir"):
+                importer.build_webui_base_import(input_archive=archive, input_dir=input_dir, output_root=root / "out")
+
+    def test_build_parser_accepts_build_command(self):
+        args = importer._build_parser().parse_args(
+            [
+                "build",
+                "--input-archive",
+                "raw.tar.gz",
+                "--run-id",
+                "trial",
+                "--canvas-size",
+                "512",
+                "--preview-sizes",
+                "128,160",
+                "--background-tolerance",
+                "20",
+                "--padding-ratio",
+                "0.08",
+            ]
+        )
+
+        self.assertEqual("build", args.command)
+        self.assertEqual(Path("raw.tar.gz"), args.input_archive)
+        self.assertEqual("trial", args.run_id)
+        self.assertEqual(512, args.canvas_size)
+        self.assertEqual("128,160", args.preview_sizes)
