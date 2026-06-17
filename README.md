@@ -25,6 +25,7 @@ pip install -e ".[dev]"
 | `akari_full_motion_quality.py` | モーション品質チェック |
 | `akari_phase3_staging.py` | Phase 3 ステージング処理 |
 | `akari_phase4_webui_base_import.py` | Phase 4 WebUI生成ベース画像の取り込み |
+| `akari_phase4_webui_diff_pack.py` | Phase 4 WebUIベース画像の現行theme比較パック |
 | `akari_phase4_candidate_batch.py` | Phase 4 修復候補のバッチ生成 |
 | `akari_phase4_gap_repair.py` | Phase 4 ギャップ修復 |
 | `akari_phase4_visual_recognition.py` | Phase 4 視覚認識テスト |
@@ -59,6 +60,19 @@ rtk uv run python -m pet_akari.akari_phase4_webui_base_import build \
 ```
 
 取り込み結果は ignored `work/` 配下に、正規化済みRGBA PNG、contact sheet、`qa/webui-base-import-validation.json` として出力される。視覚的な承認判定は自動化せず、人間レビューで確認する。
+
+### Phase 4 WebUI Diff Pack
+
+Compare the current theme with WebUI-imported base images and produce a human-editable state selection template:
+
+```bash
+rtk uv run python -m pet_akari.akari_phase4_webui_diff_pack build \
+  --theme-dir work/akari-hq-apng/phase3-staging/theme \
+  --webui-import-dir work/akari-hq-apng/phase4-webui-base-images/webui-base-001 \
+  --pack-id webui-diff-001
+```
+
+The diff pack writes ignored `work/` artifacts, including state-by-state comparison images, contact sheets, `selection-template.json`, and `diff-pack-manifest.json`. Human review fills `adopt`, `hold`, or `reject`; this command does not change theme assets.
 
 ## テスト
 

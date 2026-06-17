@@ -271,8 +271,7 @@ def build_webui_diff_pack(
         }
 
     contact_sheets = [
-        write_contact_sheet(qa_dir / f"diff-contact-sheet-{size}.png", state_diff_paths, size)
-        for size in preview_sizes
+        write_contact_sheet(qa_dir / f"diff-contact-sheet-{size}.png", state_diff_paths, size) for size in preview_sizes
     ]
     selection_template = write_selection_template(
         pack_dir / "selection-template.json", state_diff_paths, webui["normalizedPaths"]
