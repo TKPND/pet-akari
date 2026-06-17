@@ -55,3 +55,36 @@ class Phase4WebuiBaseImportTests(unittest.TestCase):
 
             self.assertEqual({"a": 1, "b": 2}, json.loads(output.read_text(encoding="utf-8")))
             self.assertTrue(output.read_text(encoding="utf-8").endswith("\n"))
+
+    def checker_image(self, size=(24, 24)):
+        image = Image.new("RGBA", size, (255, 255, 255, 255))
+        pixels = image.load()
+        colors = [(255, 255, 255, 255), (236, 238, 242, 255)]
+        for y in range(size[1]):
+            for x in range(size[0]):
+                pixels[x, y] = colors[((x // 4) + (y // 4)) % 2]
+        return image
+
+    def test_remove_checker_background_removes_only_edge_connected_background(self):
+        image = self.checker_image()
+        pixels = image.load()
+        for y in range(6, 18):
+            for x in range(8, 16):
+                pixels[x, y] = (255, 245, 230, 255)
+        pixels[12, 12] = (236, 238, 242, 255)
+
+        result, metrics = importer.remove_checker_background(image, tolerance=18)
+
+        self.assertEqual(0, result.getpixel((0, 0))[3])
+        self.assertEqual(255, result.getpixel((10, 10))[3])
+        self.assertEqual(255, result.getpixel((12, 12))[3])
+        self.assertEqual([8, 6, 16, 18], metrics["alphaBBox"])
+        self.assertGreater(metrics["removedPixels"], 0)
+        self.assertGreater(metrics["retainedOpaqueRatio"], 0)
+
+    def test_alpha_bbox_fails_for_empty_foreground(self):
+        image = self.checker_image()
+        result, _metrics = importer.remove_checker_background(image, tolerance=18)
+
+        with self.assertRaisesRegex(ValueError, "foreground bbox is empty"):
+            importer.alpha_bbox(result)
