@@ -79,3 +79,38 @@ class Phase4CandidateBatchTests(unittest.TestCase):
             self.assertEqual(["built", "invalid"], [candidate["status"] for candidate in manifest["candidates"]])
             self.assertIn("synthetic broken recipe", manifest["candidates"][1]["notes"])
             self.assertTrue(result["selectionTemplate"].is_file())
+
+    def test_write_batch_contact_sheet_extracts_focus_tiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            preview = root / "preview-128-light.png"
+            image = Image.new("RGB", (512, 300), "white")
+            colors = {
+                "A04": (255, 0, 0),
+                "A05": (0, 255, 0),
+                "A06": (0, 0, 255),
+            }
+            # A04 is column 3 row 0, A05 is column 0 row 1, A06 is column 1 row 1.
+            for box, color in [
+                ((384, 0, 512, 128), colors["A04"]),
+                ((0, 150, 128, 278), colors["A05"]),
+                ((128, 150, 256, 278), colors["A06"]),
+            ]:
+                tile = Image.new("RGB", (box[2] - box[0], box[3] - box[1]), color)
+                image.paste(tile, box)
+            image.save(preview)
+
+            record = batch.CandidateRecord(
+                candidate_id="C001",
+                recipes={"attention": "raised-hand-only", "notification": "permission-card", "error": "lower-x-only"},
+                run_dir=root / "candidate-C001",
+                status="built",
+                preview_paths={"128-light": preview.as_posix()},
+            )
+            output = batch.write_batch_contact_sheet(root / "batch-contact-sheet.png", [record], include_all_states=False)
+
+            sheet = Image.open(output).convert("RGB")
+            self.assertEqual((492, 152), sheet.size)
+            self.assertEqual((255, 0, 0), sheet.getpixel((84, 12)))
+            self.assertEqual((0, 255, 0), sheet.getpixel((224, 12)))
+            self.assertEqual((0, 0, 255), sheet.getpixel((364, 12)))

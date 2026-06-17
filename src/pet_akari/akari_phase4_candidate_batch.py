@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from pet_akari import akari_phase4_gap_repair as repair
 
@@ -109,10 +109,42 @@ def write_selection_template(path, candidate_records):
     )
 
 
+def _tile_box(tile_id, tile_size=128, label_height=22, columns=4):
+    index = int(tile_id[1:]) - 1
+    column = index % columns
+    row = index // columns
+    left = column * tile_size
+    top = row * (tile_size + label_height)
+    return (left, top, left + tile_size, top + tile_size)
+
+
+def _focus_tile_ids(include_all_states):
+    if include_all_states:
+        return tuple(f"A{index:02d}" for index in range(1, 8))
+    return FOCUS_TILE_IDS
+
+
 def write_batch_contact_sheet(path, candidate_records, include_all_states=False):
     path = Path(path)
     ensure_dir(path.parent)
-    Image.new("RGB", (320, max(1, len(candidate_records)) * 80), "white").save(path)
+    tile_ids = _focus_tile_ids(include_all_states)
+    tile_size = 128
+    padding = 12
+    label_width = 72
+    row_height = tile_size + padding * 2
+    width = label_width + len(tile_ids) * (tile_size + padding)
+    height = max(1, len(candidate_records)) * row_height
+    sheet = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(sheet)
+    for row_index, record in enumerate(candidate_records):
+        row_top = row_index * row_height
+        draw.text((padding, row_top + padding), record.candidate_id, fill=(20, 24, 32))
+        preview = Image.open(record.preview_paths["128-light"]).convert("RGB")
+        for tile_index, tile_id in enumerate(tile_ids):
+            crop = preview.crop(_tile_box(tile_id))
+            left = label_width + tile_index * (tile_size + padding)
+            sheet.paste(crop, (left, row_top + padding))
+    sheet.save(path)
     return path
 
 
