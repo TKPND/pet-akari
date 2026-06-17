@@ -3,10 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import akari_full_motion_quality as fq
-import clawd_hq_theme as hq
 from PIL import Image, ImageChops
 from test_clawd_hq_theme import temporary_theme_sizes
+
+from pet_akari import akari_full_motion_quality as fq
+from pet_akari import clawd_hq_theme as hq
 
 
 def semitransparent_split_sample(size=(120, 120)):

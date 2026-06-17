@@ -4,10 +4,11 @@ import unittest
 from contextlib import contextmanager
 from pathlib import Path
 
-import akari_phase3_staging as phase3
-import akari_source_set_approval as approval
-import clawd_hq_theme as hq
 from PIL import Image, ImageDraw
+
+from pet_akari import akari_phase3_staging as phase3
+from pet_akari import akari_source_set_approval as approval
+from pet_akari import clawd_hq_theme as hq
 
 
 @contextmanager

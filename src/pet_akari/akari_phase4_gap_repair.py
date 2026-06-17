@@ -8,10 +8,11 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-import akari_phase3_staging as phase3
-import akari_phase4_visual_recognition as vr
-import clawd_hq_theme as hq
 from PIL import Image, ImageDraw, ImageSequence
+
+from pet_akari import akari_phase3_staging as phase3
+from pet_akari import akari_phase4_visual_recognition as vr
+from pet_akari import clawd_hq_theme as hq
 
 DEFAULT_SOURCE_THEME = Path("work/akari-hq-apng/phase3-staging/theme")
 DEFAULT_SOURCE_PHASE4_EVIDENCE = Path("work/akari-hq-apng/phase4-visual-recognition/qa/phase4-visual-recognition.json")

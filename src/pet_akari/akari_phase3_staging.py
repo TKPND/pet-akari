@@ -6,8 +6,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-import akari_source_set_approval as approval
-import clawd_hq_theme as hq
+from pet_akari import akari_source_set_approval as approval
+from pet_akari import clawd_hq_theme as hq
 
 PHASE = "03-apng-export-and-clawd-contract-validation"
 SOURCE_SET_ID = "seamsafe-promoted"

@@ -11,8 +11,9 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-import clawd_hq_theme as hq
 from PIL import Image, ImageChops
+
+from pet_akari import clawd_hq_theme as hq
 
 RUN_DIR = Path("work/akari-hq-apng/full-motion-quality-run")
 SOURCE_ROOT = Path("work/akari-hq-apng/denser-source-run/masters-stabilized")

@@ -7,8 +7,9 @@ import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 
-import clawd_hq_theme as hq
 from PIL import Image, ImageDraw, ImageSequence
+
+from pet_akari import clawd_hq_theme as hq
 
 
 @contextmanager

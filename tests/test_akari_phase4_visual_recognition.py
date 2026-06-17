@@ -6,9 +6,10 @@ import unittest
 from contextlib import contextmanager
 from pathlib import Path
 
-import akari_phase4_visual_recognition as phase4
-import clawd_hq_theme as hq
 from PIL import Image, ImageDraw
+
+from pet_akari import akari_phase4_visual_recognition as phase4
+from pet_akari import clawd_hq_theme as hq
 
 
 @contextmanager

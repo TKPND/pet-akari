@@ -4,8 +4,9 @@ import argparse
 import json
 from pathlib import Path
 
-import clawd_hq_theme as hq
 from PIL import Image, ImageDraw
+
+from pet_akari import clawd_hq_theme as hq
 
 PHASE = "02-state-source-selection-and-identity-lock"
 SOURCE_SET_ID = "seamsafe-promoted"

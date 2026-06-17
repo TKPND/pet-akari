@@ -6,9 +6,10 @@ import unittest
 from contextlib import contextmanager
 from pathlib import Path
 
-import akari_denser_motion as denser
-import clawd_hq_theme as hq
 from PIL import Image
+
+from pet_akari import akari_denser_motion as denser
+from pet_akari import clawd_hq_theme as hq
 
 
 @contextmanager

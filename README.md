@@ -36,14 +36,14 @@ pip install -e ".[dev]"
 ## テスト
 
 ```bash
-uv run pytest tools/ -v
+uv run pytest
 ```
 
 ## Lint
 
 ```bash
-uv run ruff check tools/
-uv run ruff format --check tools/
+uv run ruff check .
+uv run ruff format --check .
 ```
 
 ## ライセンス

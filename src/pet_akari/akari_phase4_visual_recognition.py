@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 
-import clawd_hq_theme as hq
 from PIL import Image, ImageChops, ImageDraw, ImageSequence, ImageStat
+
+from pet_akari import clawd_hq_theme as hq
 
 PHASE = "04"
 DEFAULT_THEME_DIR = Path("work/akari-hq-apng/phase3-staging/theme")

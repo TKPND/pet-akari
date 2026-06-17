@@ -4,9 +4,10 @@ import unittest
 from contextlib import contextmanager
 from pathlib import Path
 
-import akari_phase4_visual_recognition as vr
-import clawd_hq_theme as hq
 from PIL import Image, ImageChops, ImageDraw, ImageSequence
+
+from pet_akari import akari_phase4_visual_recognition as vr
+from pet_akari import clawd_hq_theme as hq
 
 _CLAWD_VALIDATOR = Path(__file__).resolve().parents[1] / "work" / "clawd-on-desk" / "scripts" / "validate-theme.js"
 _HAS_CLAWD = _CLAWD_VALIDATOR.exists()
@@ -135,7 +136,7 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
             data["visualAcceptance"] = True
             write_json(paths["source_evidence"], data)
 
-            import akari_phase4_gap_repair as repair
+            from pet_akari import akari_phase4_gap_repair as repair
 
             with self.assertRaisesRegex(ValueError, "visualAcceptance false"):
                 repair.build_phase4_gap_repair(
@@ -151,7 +152,7 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
             data["recognition"]["failedChecks"] = [{"check": "review-disposition", "status": "fail"}]
             write_json(paths["source_evidence"], data)
 
-            import akari_phase4_gap_repair as repair
+            from pet_akari import akari_phase4_gap_repair as repair
 
             with self.assertRaisesRegex(ValueError, "A04/A05"):
                 repair.build_phase4_gap_repair(
@@ -165,7 +166,7 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
         with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
             paths = self.make_fixture(tmp)
 
-            import akari_phase4_gap_repair as repair
+            from pet_akari import akari_phase4_gap_repair as repair
 
             result = repair.build_phase4_gap_repair(
                 source_theme=paths["theme_dir"],
@@ -228,7 +229,7 @@ class AkariPhase4GapRepairTests(unittest.TestCase):
         with temporary_theme_sizes(), tempfile.TemporaryDirectory() as tmp:
             paths = self.make_fixture(tmp)
 
-            import akari_phase4_gap_repair as repair
+            from pet_akari import akari_phase4_gap_repair as repair
 
             result = repair.build_phase4_gap_repair(
                 source_theme=paths["theme_dir"],
